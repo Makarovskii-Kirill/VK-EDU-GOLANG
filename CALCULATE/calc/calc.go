@@ -3,21 +3,24 @@ package calc
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
-const leftBracket = "("
-const rightBracket = ")"
-const plus = "+"
-const minus = "-"
-const multi = "*"
-const div = "/"
-const space = " "
+const (
+	leftBracket  = '('
+	rightBracket = ')'
+	plus         = '+'
+	minus        = '-'
+	multi        = '*'
+	div          = '/'
+	space        = ' '
+)
 
-func StringToSlice(expression string) ([]string, error) {
+func tokenize(expr string) ([]string, error) {
 	var result []string
 	var number string
 	bracketsCounter := 0
-	for _, c := range expression {
+	for _, c := range expr {
 		if (c >= '0' && c <= '9') || c == '.' {
 			number += string(c)
 			continue
@@ -27,7 +30,7 @@ func StringToSlice(expression string) ([]string, error) {
 			number = ""
 		}
 
-		switch string(c) {
+		switch c {
 		case leftBracket:
 			result = append(result, string(c))
 			bracketsCounter++
@@ -37,13 +40,7 @@ func StringToSlice(expression string) ([]string, error) {
 			if bracketsCounter < 0 {
 				return nil, fmt.Errorf("закрывающая скобка раньше открывающей")
 			}
-		case plus:
-			result = append(result, string(c))
-		case minus:
-			result = append(result, string(c))
-		case multi:
-			result = append(result, string(c))
-		case div:
+		case plus, minus, multi, div:
 			result = append(result, string(c))
 		case space:
 			continue
@@ -60,47 +57,46 @@ func StringToSlice(expression string) ([]string, error) {
 	return result, nil
 }
 
-func multiplier(chars []string, pos int) (float64, int, error) {
-	if pos >= len(chars) {
+func parseFactor(tokens []string, pos int) (float64, int, error) {
+	if pos >= len(tokens) {
 		return 0, pos, fmt.Errorf("за пределами выражения")
 	}
 
-	if chars[pos] == minus {
-		result, newPos, err := multiplier(chars, pos+1)
+	if tokens[pos] == string(minus) {
+		result, newPos, err := parseFactor(tokens, pos+1)
 		return (-1 * result), newPos, err
 	}
-	if chars[pos] == leftBracket {
-		result, newPos, err := expression(chars, pos+1)
+	if tokens[pos] == string(leftBracket) {
+		result, newPos, err := parseExpression(tokens, pos+1)
 		if err != nil {
 			return 0, newPos, err
 		}
-		if newPos >= len(chars) || chars[newPos] != rightBracket {
+		if newPos >= len(tokens) || tokens[newPos] != string(rightBracket) {
 			return 0, newPos, fmt.Errorf("где закрывающая скобка")
 		}
 		return result, newPos + 1, nil
 	}
-	result, err := strconv.ParseFloat(chars[pos], 64)
+	result, err := strconv.ParseFloat(tokens[pos], 64)
 	if err != nil {
 		return 0, pos, fmt.Errorf("где число")
 	}
 	return result, pos + 1, nil
-
 }
 
-func term(chars []string, pos int) (float64, int, error) {
-	result, pos, err := multiplier(chars, pos)
+func parseTerm(tokens []string, pos int) (float64, int, error) {
+	result, pos, err := parseFactor(tokens, pos)
 	if err != nil {
 		return 0, pos, err
 	}
-	for pos < len(chars) && (chars[pos] == "*" || chars[pos] == "/") {
-		right, newPos, err := multiplier(chars, pos+1)
+	for pos < len(tokens) && (tokens[pos] == string(multi) || tokens[pos] == string(div)) {
+		right, newPos, err := parseFactor(tokens, pos+1)
 		if err != nil {
 			return 0, pos, err
 		}
-		if chars[pos] == "*" {
+		if tokens[pos] == string(multi) {
 			result *= right
 		}
-		if chars[pos] == "/" {
+		if tokens[pos] == string(div) {
 			if right == 0 {
 				return 0, pos, fmt.Errorf("деление на ноль")
 			}
@@ -109,23 +105,22 @@ func term(chars []string, pos int) (float64, int, error) {
 		pos = newPos
 	}
 	return result, pos, nil
-
 }
 
-func expression(chars []string, pos int) (float64, int, error) {
-	result, pos, err := term(chars, pos)
+func parseExpression(tokens []string, pos int) (float64, int, error) {
+	result, pos, err := parseTerm(tokens, pos)
 	if err != nil {
 		return 0, pos, err
 	}
-	for pos < len(chars) && (chars[pos] == "+" || chars[pos] == "-") {
-		right, newPos, err := term(chars, pos+1)
+	for pos < len(tokens) && (tokens[pos] == string(plus) || tokens[pos] == string(minus)) {
+		right, newPos, err := parseTerm(tokens, pos+1)
 		if err != nil {
 			return 0, pos, err
 		}
-		if chars[pos] == "+" {
+		if tokens[pos] == string(plus) {
 			result += right
 		}
-		if chars[pos] == "-" {
+		if tokens[pos] == string(minus) {
 			result -= right
 		}
 		pos = newPos
@@ -134,17 +129,21 @@ func expression(chars []string, pos int) (float64, int, error) {
 }
 
 func Calc(expr string) (float64, error) {
-	chars, err := StringToSlice(expr)
+	if strings.TrimSpace(expr) == "" {
+		return 0, nil
+	}
+
+	tokens, err := tokenize(expr)
 	if err != nil {
 		return 0, err
 	}
 
-	result, pos, err := expression(chars, 0)
+	result, pos, err := parseExpression(tokens, 0)
 	if err != nil {
 		return 0, err
 	}
 
-	if pos != len(chars) {
+	if pos != len(tokens) {
 		return 0, fmt.Errorf("лишние символы")
 	}
 

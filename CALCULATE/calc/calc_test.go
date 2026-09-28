@@ -19,6 +19,8 @@ func TestCalcSuccess(t *testing.T) {
 		{name: "пример", expr: "8-3-2", want: 3},
 		{name: "пример", expr: "-(1+2)", want: -3},
 		{name: "пример", expr: "2*-1.5", want: -3},
+		{name: "пустая строка", expr: "", want: 0},
+		{name: "строка из пробелов", expr: "   ", want: 0},
 	}
 
 	for _, tt := range tests {
