@@ -1,0 +1,57 @@
+package calc
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestCalcSuccess(t *testing.T) {
+	tests := []struct {
+		name string
+		expr string
+		want float64
+	}{
+		{name: "пример", expr: "(1+2)-3", want: 0},
+		{name: "пример", expr: "(1+2)*3", want: 9},
+		{name: "пример", expr: "7/2", want: 3.5},
+		{name: "пример", expr: "1+2*3", want: 7},
+		{name: "пример", expr: "8-3-2", want: 3},
+		{name: "пример", expr: "-(1+2)", want: -3},
+		{name: "пример", expr: "2*-1.5", want: -3},
+		{name: "пустая строка", expr: "", want: 0},
+		{name: "строка из пробелов", expr: "   ", want: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Calc(tt.expr)
+			require.NoError(t, err)
+			require.InDelta(t, tt.want, got, 1e-9)
+		})
+	}
+}
+
+func TestCalcError(t *testing.T) {
+	tests := []struct {
+		name    string
+		expr    string
+		errWant error
+	}{
+		{name: "деление на ноль", expr: "(1/0)", errWant: ErrDivisionZero},
+		{name: "неизвестный символ", expr: "2x", errWant: ErrUnknownSymbol},
+		{name: "незакрытая скобка", expr: "(1+2", errWant: ErrUnclosedBracket},
+		{name: "закрывающая скобка раньше открывающей", expr: ")1(", errWant: ErrCloseBracket},
+		{name: "оператор в конце", expr: "1+2*", errWant: ErrUnexpectedEnd},
+		{name: "два числа без оператора", expr: "1 2", errWant: ErrExtraChars},
+		{name: "два числа внутри скобок", expr: "(1 2)", errWant: ErrMissingCloseBracket},
+		{name: "неправильное число", expr: "1.2.3", errWant: ErrExpectNumber},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Calc(tt.expr)
+			require.ErrorIs(t, err, tt.errWant)
+		})
+	}
+}
