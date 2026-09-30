@@ -1,7 +1,7 @@
 package calc
 
 import (
-	"fmt"
+	"errors"
 	"strconv"
 	"strings"
 )
@@ -14,6 +14,17 @@ const (
 	multi        = '*'
 	div          = '/'
 	space        = ' '
+)
+
+var (
+	ErrCloseBracket        = errors.New("закрывающая скобка раньше открывающей")
+	ErrUnknownSymbol       = errors.New("неизвестный символ")
+	ErrUnclosedBracket     = errors.New("не закрыта скобка")
+	ErrUnexpectedEnd       = errors.New("выражение неожиданно закончилось")
+	ErrMissingCloseBracket = errors.New("ожидалась закрывающая скобка")
+	ErrExpectNumber        = errors.New("ожидалось число")
+	ErrDivisionZero        = errors.New("деление на ноль")
+	ErrExtraChars          = errors.New("лишние символы в выражении")
 )
 
 func tokenize(expr string) ([]string, error) {
@@ -38,28 +49,28 @@ func tokenize(expr string) ([]string, error) {
 			result = append(result, string(c))
 			bracketsCounter--
 			if bracketsCounter < 0 {
-				return nil, fmt.Errorf("закрывающая скобка раньше открывающей")
+				return nil, ErrCloseBracket
 			}
 		case plus, minus, multi, div:
 			result = append(result, string(c))
 		case space:
 			continue
 		default:
-			return nil, fmt.Errorf("неизвестный символ")
+			return nil, ErrUnknownSymbol
 		}
 	}
 	if number != "" {
 		result = append(result, number)
 	}
 	if bracketsCounter != 0 {
-		return nil, fmt.Errorf("неверное число скобок")
+		return nil, ErrUnclosedBracket
 	}
 	return result, nil
 }
 
 func parseFactor(tokens []string, pos int) (float64, int, error) {
 	if pos >= len(tokens) {
-		return 0, pos, fmt.Errorf("за пределами выражения")
+		return 0, pos, ErrUnexpectedEnd
 	}
 
 	if tokens[pos] == string(minus) {
@@ -72,13 +83,13 @@ func parseFactor(tokens []string, pos int) (float64, int, error) {
 			return 0, newPos, err
 		}
 		if newPos >= len(tokens) || tokens[newPos] != string(rightBracket) {
-			return 0, newPos, fmt.Errorf("где закрывающая скобка")
+			return 0, newPos, ErrMissingCloseBracket
 		}
 		return result, newPos + 1, nil
 	}
 	result, err := strconv.ParseFloat(tokens[pos], 64)
 	if err != nil {
-		return 0, pos, fmt.Errorf("где число")
+		return 0, pos, ErrExpectNumber
 	}
 	return result, pos + 1, nil
 }
@@ -98,7 +109,7 @@ func parseTerm(tokens []string, pos int) (float64, int, error) {
 		}
 		if tokens[pos] == string(div) {
 			if right == 0 {
-				return 0, pos, fmt.Errorf("деление на ноль")
+				return 0, pos, ErrDivisionZero
 			}
 			result /= right
 		}
@@ -144,7 +155,7 @@ func Calc(expr string) (float64, error) {
 	}
 
 	if pos != len(tokens) {
-		return 0, fmt.Errorf("лишние символы")
+		return 0, ErrExtraChars
 	}
 
 	return result, nil

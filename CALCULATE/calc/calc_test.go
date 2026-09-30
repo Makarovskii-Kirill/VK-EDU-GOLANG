@@ -34,23 +34,24 @@ func TestCalcSuccess(t *testing.T) {
 
 func TestCalcError(t *testing.T) {
 	tests := []struct {
-		name string
-		expr string
+		name    string
+		expr    string
+		errWant error
 	}{
-		{name: "деление на ноль", expr: "(1/0)"},
-		{name: "неизвестный символ", expr: "2x"},
-		{name: "незакрытая скобка", expr: "(1+2"},
-		{name: "закрывающая скобка раньше открывающей", expr: ")1("},
-		{name: "оператор в конце", expr: "1+2*"},
-		{name: "два числа без оператора", expr: "1 2"},
-		{name: "два числа внутри скобок", expr: "(1 2)"},
-		{name: "неправильное число", expr: "1.2.3"},
+		{name: "деление на ноль", expr: "(1/0)", errWant: ErrDivisionZero},
+		{name: "неизвестный символ", expr: "2x", errWant: ErrUnknownSymbol},
+		{name: "незакрытая скобка", expr: "(1+2", errWant: ErrUnclosedBracket},
+		{name: "закрывающая скобка раньше открывающей", expr: ")1(", errWant: ErrCloseBracket},
+		{name: "оператор в конце", expr: "1+2*", errWant: ErrUnexpectedEnd},
+		{name: "два числа без оператора", expr: "1 2", errWant: ErrExtraChars},
+		{name: "два числа внутри скобок", expr: "(1 2)", errWant: ErrMissingCloseBracket},
+		{name: "неправильное число", expr: "1.2.3", errWant: ErrExpectNumber},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := Calc(tt.expr)
-			require.Error(t, err)
+			require.ErrorIs(t, err, tt.errWant)
 		})
 	}
 }
